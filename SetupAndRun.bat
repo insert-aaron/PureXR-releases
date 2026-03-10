@@ -266,7 +266,7 @@ if not defined PYCMD (
             SET "PY_URL=https://www.python.org/ftp/python/3.12.8/python-3.12.8.exe"
         )
 
-        powershell -Command "Invoke-WebRequest -Uri '!PY_URL!' -OutFile '%TEMP%\python_installer.exe'"
+        powershell -Command "Invoke-WebRequest -Uri $env:PY_URL -OutFile '%TEMP%\python_installer.exe'"
         "%TEMP%\python_installer.exe" /quiet InstallAllUsers=0 PrependPath=1 Include_pip=1
         del "%TEMP%\python_installer.exe" >nul 2>&1
         SET "PATH=%LOCALAPPDATA%\Programs\Python\Python312;%LOCALAPPDATA%\Programs\Python\Python312\Scripts;%PATH%"
