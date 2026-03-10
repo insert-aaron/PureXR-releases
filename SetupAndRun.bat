@@ -261,7 +261,7 @@ if not defined PYCMD (
         if %errorlevel%==0 set PYCMD=python
     )
     if not defined PYCMD (
-        powershell -Command "Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe' -OutFile '%TEMP%\python_installer.exe'"
+        certutil -urlcache -split -f "https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe" "%TEMP%\python_installer.exe" >nul 2>&1
         "%TEMP%\python_installer.exe" /quiet InstallAllUsers=0 PrependPath=1 Include_pip=1
         del "%TEMP%\python_installer.exe" >nul 2>&1
         SET "PATH=%LOCALAPPDATA%\Programs\Python\Python312;%LOCALAPPDATA%\Programs\Python\Python312\Scripts;%PATH%"
