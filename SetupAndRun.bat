@@ -1,0 +1,221 @@
+@echo off
+setlocal enabledelayedexpansion
+
+REM ============================================
+REM PureXR - Setup + Run (one entry point)
+REM ============================================
+REM FIRST RUN: Place this .bat anywhere and
+REM double-click. It will:
+REM   1. Check/install Git
+REM   2. Clone the PureXR releases repo
+REM   3. Check .NET 4.8
+REM   4. Check TWAIN / RVG drivers
+REM   5. Create Desktop shortcut
+REM   6. Launch PureXR
+REM
+REM SUBSEQUENT RUNS (via Desktop shortcut):
+REM   - Auto-checks GitHub for updates
+REM   - Silently pulls if update available
+REM   - Launches PureXR
+REM
+REM Optional bundled installers (place next to this .bat):
+REM   dotnet48-installer.exe
+REM   rvg-driver-setup.exe
+REM ============================================
+
+REM ============================================
+REM  CONFIGURE THESE
+REM ============================================
+SET REPO_URL=https://github.com/insert-aaron/PureXR-releases.git
+SET INSTALL_DIR=C:\PureXR
+SET EXE_NAME=RvgCaptureGui.exe
+SET SERVICE_NAME=CaptureService.exe
+REM ============================================
+
+SET "EXE_PATH=%INSTALL_DIR%\%EXE_NAME%"
+SET "SERVICE_PATH=%INSTALL_DIR%\%SERVICE_NAME%"
+SET "SHORTCUT_PATH=%USERPROFILE%\Desktop\PureXR.lnk"
+SET "OUTDIR=%USERPROFILE%\Desktop\X-Ray Images - DO NOT Delete"
+SET "HERE=%~dp0"
+
+REM ============================================
+REM  STEP 0 — Relaunch elevated (UAC)
+REM ============================================
+net session >nul 2>&1
+if errorlevel 1 (
+    powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+        "Start-Process -FilePath '%~f0' -Verb RunAs"
+    exit /b 0
+)
+
+echo ================================
+echo   PureXR Launcher
+echo ================================
+echo.
+
+REM ============================================
+REM  STEP 1 — Check Git installed
+REM ============================================
+git --version >nul 2>&1
+IF %ERRORLEVEL% NEQ 0 (
+    echo [1/6] Git not found. Installing Git silently...
+    powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+        "Invoke-WebRequest 'https://github.com/git-for-windows/git/releases/download/v2.47.0.windows.1/Git-2.47.0-64-bit.exe' -OutFile '$env:TEMP\git-installer.exe'"
+    "%TEMP%\git-installer.exe" /VERYSILENT /NORESTART /CLOSEAPPLICATIONS
+    echo Git installed.
+    REM Refresh PATH so git is available in this session
+    SET "PATH=%PATH%;C:\Program Files\Git\cmd"
+) ELSE (
+    echo [1/6] Git OK.
+)
+
+REM ============================================
+REM  STEP 2 — Clone or Update via Git
+REM ============================================
+IF NOT EXIST "%INSTALL_DIR%\.git" (
+    echo [2/6] First-time install: Downloading PureXR...
+    git clone "%REPO_URL%" "%INSTALL_DIR%"
+    IF %ERRORLEVEL% NEQ 0 (
+        echo ERROR: Failed to download PureXR.
+        echo Check your internet connection and try again.
+        pause
+        exit /b 1
+    )
+    echo Download complete.
+) ELSE (
+    echo [2/6] Checking for updates...
+    cd /d "%INSTALL_DIR%"
+
+    REM Try to reach GitHub — skip update if offline
+    git fetch --depth=1 origin main >nul 2>&1
+    IF %ERRORLEVEL% NEQ 0 (
+        echo Could not reach update server. Running current version.
+        goto :SKIP_UPDATE
+    )
+
+    REM Compare local vs remote commit hash
+    FOR /F %%i IN ('git rev-parse HEAD') DO SET LOCAL_HASH=%%i
+    FOR /F %%i IN ('git rev-parse origin/main') DO SET REMOTE_HASH=%%i
+
+    IF NOT "!LOCAL_HASH!"=="!REMOTE_HASH!" (
+        echo Update found! Downloading...
+        git pull origin main
+        echo Update complete.
+    ) ELSE (
+        echo Already up to date.
+    )
+)
+:SKIP_UPDATE
+
+REM Display current version
+IF EXIST "%INSTALL_DIR%\version.txt" (
+    SET /P CURRENT_VERSION=<"%INSTALL_DIR%\version.txt"
+    echo Version: !CURRENT_VERSION!
+)
+echo.
+
+REM ============================================
+REM  STEP 3 — Verify files exist
+REM ============================================
+echo [3/6] Verifying installation...
+IF NOT EXIST "%EXE_PATH%" (
+    echo ERROR: %EXE_NAME% not found in %INSTALL_DIR%
+    echo The download may have failed. Delete %INSTALL_DIR% and run again.
+    pause
+    exit /b 1
+)
+IF NOT EXIST "%SERVICE_PATH%" (
+    echo ERROR: %SERVICE_NAME% not found in %INSTALL_DIR%
+    pause
+    exit /b 1
+)
+echo Files OK.
+
+REM ============================================
+REM  STEP 4 — Check .NET Framework 4.8
+REM ============================================
+echo [4/6] Checking .NET Framework 4.8...
+set "DOTNET48_OK="
+for /f "usebackq delims=" %%R in (`powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$r=(Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full' -Name Release -EA SilentlyContinue).Release; if($r -ge 528040){'OK'} else {'NO'}"`) do (
+  set "DOTNET48_OK=%%R"
+)
+
+IF /I NOT "%DOTNET48_OK%"=="OK" (
+    echo .NET 4.8 not detected.
+    IF EXIST "%HERE%dotnet48-installer.exe" (
+        echo Installing .NET Framework 4.8... (this may take a few minutes)
+        start /wait "" "%HERE%dotnet48-installer.exe"
+    ) ELSE IF EXIST "%INSTALL_DIR%\dotnet48-installer.exe" (
+        start /wait "" "%INSTALL_DIR%\dotnet48-installer.exe"
+    ) ELSE (
+        echo WARNING: dotnet48-installer.exe not found.
+        echo Please install .NET Framework 4.8 manually, then re-run.
+        pause
+    )
+) ELSE (
+    echo .NET 4.8 OK.
+)
+
+REM ============================================
+REM  STEP 5 — Check TWAIN / RVG drivers
+REM ============================================
+echo [5/6] Checking TWAIN sources...
+set "HAS_TWAIN="
+for /f "usebackq delims=" %%L in (`"%SERVICE_PATH%" --list-sources 2^>nul`) do (
+    echo TWAIN source detected: %%L
+    set "HAS_TWAIN=1"
+    goto :twain_done
+)
+:twain_done
+
+IF NOT DEFINED HAS_TWAIN (
+    echo WARNING: No TWAIN sources detected.
+    IF EXIST "%HERE%rvg-driver-setup.exe" (
+        echo Launching RVG driver installer...
+        start /wait "" "%HERE%rvg-driver-setup.exe"
+    ) ELSE IF EXIST "%INSTALL_DIR%\rvg-driver-setup.exe" (
+        start /wait "" "%INSTALL_DIR%\rvg-driver-setup.exe"
+    ) ELSE (
+        echo Please install Carestream RVG drivers, then re-run.
+        pause
+    )
+) ELSE (
+    echo TWAIN OK.
+)
+
+REM ============================================
+REM  STEP 6 — Create output folder + shortcut
+REM ============================================
+echo [6/6] Finalizing...
+
+REM Create X-Ray output folder on Desktop
+IF NOT EXIST "%OUTDIR%" (
+    mkdir "%OUTDIR%" 2>nul
+    echo Created output folder on Desktop.
+)
+
+REM Create Desktop shortcut pointing to installed location
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$s='%SHORTCUT_PATH%';" ^
+  "$target='%EXE_PATH%';" ^
+  "$wd='%INSTALL_DIR%';" ^
+  "$ico=Join-Path '%INSTALL_DIR%' 'Assets\app.ico';" ^
+  "if(!(Test-Path $ico)){$ico=$target};" ^
+  "$w=New-Object -ComObject WScript.Shell;" ^
+  "$sc=$w.CreateShortcut($s);" ^
+  "$sc.TargetPath=$target;" ^
+  "$sc.WorkingDirectory=$wd;" ^
+  "$sc.IconLocation=$ico;" ^
+  "$sc.Save();" >nul 2>&1
+
+echo Desktop shortcut updated.
+
+REM ============================================
+REM  LAUNCH
+REM ============================================
+echo.
+echo Launching PureXR...
+start "" "%EXE_PATH%"
+
+exit /b 0
