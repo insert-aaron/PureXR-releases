@@ -83,7 +83,7 @@ IF %ERRORLEVEL% NEQ 0 (
         SET "GIT_PATH=C:\Program Files (x86)\Git\cmd"
     )
 
-    powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest $env:GIT_URL -OutFile '$env:TEMP\git-installer.exe'"
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri $env:GIT_URL -OutFile '%TEMP%\git-installer.exe'"
     "%TEMP%\git-installer.exe" /VERYSILENT /NORESTART /CLOSEAPPLICATIONS
 
     echo Git installed.
