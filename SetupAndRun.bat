@@ -59,12 +59,11 @@ REM ============================================
 git --version >nul 2>&1
 IF %ERRORLEVEL% NEQ 0 (
     echo [1/6] Git not found. Installing Git silently...
-    powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-        "Invoke-WebRequest 'https://github.com/git-for-windows/git/releases/download/v2.47.0.windows.1/Git-2.47.0-64-bit.exe' -OutFile '$env:TEMP\git-installer.exe'"
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest 'https://github.com/git-for-windows/git/releases/download/v2.47.0.windows.1/Git-2.47.0-64-bit.exe' -OutFile '%TEMP%\git-installer.exe'"
     "%TEMP%\git-installer.exe" /VERYSILENT /NORESTART /CLOSEAPPLICATIONS
     echo Git installed.
-    REM Refresh PATH so git is available in this session
-    SET "PATH=%PATH%;C:\Program Files\Git\cmd"
+    REM Prepend so git.exe is found immediately in this session
+    SET "PATH=C:\Program Files\Git\cmd;%PATH%"
 ) ELSE (
     echo [1/6] Git OK.
 )
