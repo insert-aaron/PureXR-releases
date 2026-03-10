@@ -125,7 +125,9 @@ IF NOT EXIST "%INSTALL_DIR%\.git" (
         echo Update found! Downloading...
         git fetch --depth=1 origin main
         git reset --hard origin/main
-        echo Update complete.
+        echo Update complete. Restarting...
+        start "" "%INSTALL_DIR%\SetupAndRun.bat"
+        exit /b 0
     ) ELSE (
         echo Already up to date.
     )
