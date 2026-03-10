@@ -149,8 +149,7 @@ IF /I NOT "%DOTNET48_OK%"=="OK" (
         start /wait "" "%INSTALL_DIR%\dotnet48-installer.exe"
     ) ELSE (
         echo WARNING: dotnet48-installer.exe not found.
-        echo Please install .NET Framework 4.8 manually, then re-run.
-        pause
+        echo Please install .NET Framework 4.8 manually if the app fails to launch.
     )
 ) ELSE (
     echo .NET 4.8 OK.
@@ -176,8 +175,7 @@ IF NOT DEFINED HAS_TWAIN (
     ) ELSE IF EXIST "%INSTALL_DIR%\rvg-driver-setup.exe" (
         start /wait "" "%INSTALL_DIR%\rvg-driver-setup.exe"
     ) ELSE (
-        echo Please install Carestream RVG drivers, then re-run.
-        pause
+        echo No RVG driver installer found. Continuing anyway.
     )
 ) ELSE (
     echo TWAIN OK.
