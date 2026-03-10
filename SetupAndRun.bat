@@ -45,6 +45,14 @@ SET "OUTDIR=%USERPROFILE%\Desktop\X-Ray Images - DO NOT Delete"
 SET "HERE=%~dp0"
 
 REM ============================================
+REM  DETECT OS BITNESS (64 vs 32)
+REM ============================================
+SET "ARCH=64"
+IF /I "%PROCESSOR_ARCHITECTURE%"=="x86" IF "%PROCESSOR_ARCHITEW6432%"=="" SET "ARCH=32"
+echo Detected Windows %ARCH%-bit.
+echo.
+
+REM ============================================
 REM  STEP 0 — Relaunch elevated (UAC)
 REM ============================================
 net session >nul 2>&1
@@ -65,11 +73,22 @@ REM ============================================
 git --version >nul 2>&1
 IF %ERRORLEVEL% NEQ 0 (
     echo [1/7] Git not found. Installing Git silently...
-    powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest 'https://github.com/git-for-windows/git/releases/download/v2.47.0.windows.1/Git-2.47.0-64-bit.exe' -OutFile '%TEMP%\git-installer.exe'"
+
+    REM Prefer 64-bit Git, but fall back to 32-bit on 32-bit Windows
+    IF "%ARCH%"=="64" (
+        SET "GIT_URL=https://github.com/git-for-windows/git/releases/download/v2.47.0.windows.1/Git-2.47.0-64-bit.exe"
+        SET "GIT_PATH=C:\Program Files\Git\cmd"
+    ) ELSE (
+        SET "GIT_URL=https://github.com/git-for-windows/git/releases/download/v2.47.0.windows.1/Git-2.47.0-32-bit.exe"
+        SET "GIT_PATH=C:\Program Files (x86)\Git\cmd"
+    )
+
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest '%GIT_URL%' -OutFile '%TEMP%\git-installer.exe'"
     "%TEMP%\git-installer.exe" /VERYSILENT /NORESTART /CLOSEAPPLICATIONS
+
     echo Git installed.
     REM Prepend so git.exe is found immediately in this session
-    SET "PATH=C:\Program Files\Git\cmd;%PATH%"
+    SET "PATH=%GIT_PATH%;%PATH%"
 ) ELSE (
     echo [1/7] Git OK.
 )
@@ -240,7 +259,14 @@ if not defined PYCMD (
         if %errorlevel%==0 set PYCMD=python
     )
     if not defined PYCMD (
-        powershell -Command "Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe' -OutFile '%TEMP%\python_installer.exe'"
+        REM Prefer 64-bit Python, but fall back to 32-bit on 32-bit Windows
+        IF "%ARCH%"=="64" (
+            SET "PY_URL=https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe"
+        ) ELSE (
+            SET "PY_URL=https://www.python.org/ftp/python/3.12.8/python-3.12.8.exe"
+        )
+
+        powershell -Command "Invoke-WebRequest -Uri '%PY_URL%' -OutFile '%TEMP%\python_installer.exe'"
         "%TEMP%\python_installer.exe" /quiet InstallAllUsers=0 PrependPath=1 Include_pip=1
         del "%TEMP%\python_installer.exe" >nul 2>&1
         SET "PATH=%LOCALAPPDATA%\Programs\Python\Python312;%LOCALAPPDATA%\Programs\Python\Python312\Scripts;%PATH%"
