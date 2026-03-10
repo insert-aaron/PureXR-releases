@@ -75,7 +75,7 @@ IF %ERRORLEVEL% NEQ 0 (
     echo [1/7] Git not found. Installing Git silently...
 
     REM Prefer 64-bit Git, but fall back to 32-bit on 32-bit Windows
-    IF "%ARCH%"=="64" (
+    IF "!ARCH!"=="64" (
         SET "GIT_URL=https://github.com/git-for-windows/git/releases/download/v2.47.0.windows.1/Git-2.47.0-64-bit.exe"
         SET "GIT_PATH=C:\Program Files\Git\cmd"
     ) ELSE (
@@ -83,12 +83,12 @@ IF %ERRORLEVEL% NEQ 0 (
         SET "GIT_PATH=C:\Program Files (x86)\Git\cmd"
     )
 
-    powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest '%GIT_URL%' -OutFile '%TEMP%\git-installer.exe'"
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest $env:GIT_URL -OutFile '$env:TEMP\git-installer.exe'"
     "%TEMP%\git-installer.exe" /VERYSILENT /NORESTART /CLOSEAPPLICATIONS
 
     echo Git installed.
     REM Prepend so git.exe is found immediately in this session
-    SET "PATH=%GIT_PATH%;%PATH%"
+    SET "PATH=!GIT_PATH!;%PATH%"
 ) ELSE (
     echo [1/7] Git OK.
 )
