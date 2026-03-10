@@ -283,9 +283,35 @@ REM Copy watcher script from dist into the X-Ray output folder
 echo [7/7] Deploying watcher to output folder...
 copy /Y "%INSTALL_DIR%\dist\%WATCHER_NAME%" "%OUTDIR%\%WATCHER_NAME%" >nul 2>&1
 if exist "%OUTDIR%\%WATCHER_NAME%" (
-    echo [7/7] PureChart watcher deployed. Starting in background...
-    powershell -Command "Start-Process '%PYCMD%' -ArgumentList '\"%OUTDIR%\%WATCHER_NAME%\"' -WindowStyle Hidden"
-    echo PureChart watcher running.
+    echo [7/7] PureChart watcher deployed.
+
+    REM Resolve full Python path for Task Scheduler (schtasks needs an absolute path)
+    set "PYCMD_FULL="
+    for /f "tokens=*" %%i in ('where %PYCMD% 2^>nul') do (
+        if not defined PYCMD_FULL set "PYCMD_FULL=%%i"
+    )
+    if not defined PYCMD_FULL set "PYCMD_FULL=%PYCMD%"
+
+    REM Register in Task Scheduler — triggers on any user login, runs hidden, highest privileges
+    schtasks /create /tn "PureXR PureChart Watcher" ^
+        /tr "\"!PYCMD_FULL!\" \"!OUTDIR!\!WATCHER_NAME!\"" ^
+        /sc onlogon ^
+        /rl highest ^
+        /f >nul 2>&1
+    if %errorlevel%==0 (
+        echo PureChart watcher registered in Task Scheduler ^(auto-starts on login^).
+    ) else (
+        echo WARNING: Could not register Task Scheduler task. Run as Administrator to enable auto-start.
+    )
+
+    REM Find pythonw.exe (windowless Python — no console window) next to python.exe
+    for /f "tokens=*" %%i in ('!PYCMD! -c "import sys,os; print(os.path.join(os.path.dirname(sys.executable),\"pythonw.exe\"))" 2^>nul') do set "PYTHONW=%%i"
+    if not defined PYTHONW set "PYTHONW=!PYCMD_FULL!"
+    if not exist "!PYTHONW!" set "PYTHONW=!PYCMD_FULL!"
+
+    REM start "" fully detaches the process — no console window, no taskbar entry
+    start "" "!PYTHONW!" "!OUTDIR!\!WATCHER_NAME!"
+    echo PureChart watcher running in background.
 ) else (
     echo WARNING: Failed to deploy PureChart watcher script.
 )
