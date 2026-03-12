@@ -32,11 +32,6 @@ SET REPO_URL=https://github.com/insert-aaron/PureXR-releases.git
 SET INSTALL_DIR=C:\PureXR
 SET EXE_NAME=RvgCaptureGui.exe
 SET SERVICE_NAME=CaptureService.exe
-REM ============================================
-REM  PURECHART WATCHER (pre-filled for this facility)
-REM ============================================
-SET WATCHER_NAME=Purechart_Watcher_Austin_e70abf0a.py
-REM ============================================
 
 SET "EXE_PATH=%INSTALL_DIR%\%EXE_NAME%"
 SET "SERVICE_PATH=%INSTALL_DIR%\%SERVICE_NAME%"
@@ -212,7 +207,7 @@ IF NOT DEFINED HAS_TWAIN (
 REM ============================================
 REM  STEP 6 — Create output folder + shortcut
 REM ============================================
-echo [6/7] Finalizing...
+echo [6/6] Finalizing...
 
 REM Create X-Ray output folder on Desktop
 IF NOT EXIST "%OUTDIR%" (
@@ -235,86 +230,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$sc.Save();" >nul 2>&1
 
 echo Desktop shortcut updated.
-
-REM ============================================
-REM  STEP 7 — PureChart File Watcher
-REM ============================================
-echo [7/7] Setting up PureChart file watcher...
-
-REM Find Python
-set PYCMD=
-python --version >nul 2>&1
-if %errorlevel%==0 set PYCMD=python
-if not defined PYCMD (
-    py --version >nul 2>&1
-    if %errorlevel%==0 set PYCMD=py
-)
-if defined PYCMD goto :watcher_deps
-
-REM Python not found — install it
-echo [7/7] Python not found. Installing Python 3.12...
-winget --version >nul 2>&1
-if %errorlevel%==0 (
-    winget install Python.Python.3.12 --accept-package-agreements --accept-source-agreements
-    SET "PATH=%LOCALAPPDATA%\Programs\Python\Python312;%LOCALAPPDATA%\Programs\Python\Python312\Scripts;%PATH%"
-    python --version >nul 2>&1
-    if %errorlevel%==0 set PYCMD=python
-)
-if defined PYCMD goto :watcher_deps
-
-certutil -urlcache -split -f "https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe" "%TEMP%\python_installer.exe" >nul 2>&1
-"%TEMP%\python_installer.exe" /quiet InstallAllUsers=0 PrependPath=1 Include_pip=1
-del "%TEMP%\python_installer.exe" >nul 2>&1
-SET "PATH=%LOCALAPPDATA%\Programs\Python\Python312;%LOCALAPPDATA%\Programs\Python\Python312\Scripts;%PATH%"
-python --version >nul 2>&1
-if %errorlevel%==0 set PYCMD=python
-
-if not defined PYCMD (
-    echo WARNING: Could not install Python. PureChart watcher will not run.
-    goto :launch
-)
-
-:watcher_deps
-echo [7/7] Python OK. Installing watcher dependencies...
-%PYCMD% -m pip install --quiet --upgrade pip >nul 2>&1
-%PYCMD% -m pip install --quiet watchdog requests
-
-REM Copy watcher script from dist into the X-Ray output folder
-echo [7/7] Deploying watcher to output folder...
-copy /Y "%INSTALL_DIR%\dist\%WATCHER_NAME%" "%OUTDIR%\%WATCHER_NAME%" >nul 2>&1
-if exist "%OUTDIR%\%WATCHER_NAME%" (
-    echo [7/7] PureChart watcher deployed.
-
-    REM Resolve full Python path for Task Scheduler (schtasks needs an absolute path)
-    set "PYCMD_FULL="
-    for /f "tokens=*" %%i in ('where %PYCMD% 2^>nul') do (
-        if not defined PYCMD_FULL set "PYCMD_FULL=%%i"
-    )
-    if not defined PYCMD_FULL set "PYCMD_FULL=%PYCMD%"
-
-    REM Register in Task Scheduler — triggers on any user login, runs hidden, highest privileges
-    schtasks /create /tn "PureXR PureChart Watcher" ^
-        /tr "\"!PYCMD_FULL!\" \"!OUTDIR!\!WATCHER_NAME!\"" ^
-        /sc onlogon ^
-        /rl highest ^
-        /f >nul 2>&1
-    if %errorlevel%==0 (
-        echo PureChart watcher registered in Task Scheduler ^(auto-starts on login^).
-    ) else (
-        echo WARNING: Could not register Task Scheduler task. Run as Administrator to enable auto-start.
-    )
-
-    REM Find pythonw.exe (windowless Python — no console window) next to python.exe
-    for /f "tokens=*" %%i in ('!PYCMD! -c "import sys,os; print(os.path.join(os.path.dirname(sys.executable),\"pythonw.exe\"))" 2^>nul') do set "PYTHONW=%%i"
-    if not defined PYTHONW set "PYTHONW=!PYCMD_FULL!"
-    if not exist "!PYTHONW!" set "PYTHONW=!PYCMD_FULL!"
-
-    REM start "" fully detaches the process — no console window, no taskbar entry
-    start "" "!PYTHONW!" "!OUTDIR!\!WATCHER_NAME!"
-    echo PureChart watcher running in background.
-) else (
-    echo WARNING: Failed to deploy PureChart watcher script.
-)
 
 :launch
 REM ============================================
