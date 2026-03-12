@@ -215,16 +215,19 @@ IF NOT EXIST "%OUTDIR%" (
     echo Created output folder on Desktop.
 )
 
-REM Create Desktop shortcut pointing to installed location
+REM Create Desktop shortcut pointing to SetupAndRun.bat (ensures update check on every launch)
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$s='%SHORTCUT_PATH%';" ^
-  "$target='%EXE_PATH%';" ^
+  "$target='%WINDIR%\System32\cmd.exe';" ^
+  "$args='/c \"%INSTALL_DIR%\SetupAndRun.bat\"';" ^
   "$wd='%INSTALL_DIR%';" ^
   "$ico=Join-Path '%INSTALL_DIR%' 'Assets\app.ico';" ^
-  "if(!(Test-Path $ico)){$ico=$target};" ^
+  "$fallback='%EXE_PATH%';" ^
+  "if(!(Test-Path $ico)){$ico=$fallback};" ^
   "$w=New-Object -ComObject WScript.Shell;" ^
   "$sc=$w.CreateShortcut($s);" ^
   "$sc.TargetPath=$target;" ^
+  "$sc.Arguments=$args;" ^
   "$sc.WorkingDirectory=$wd;" ^
   "$sc.IconLocation=$ico;" ^
   "$sc.Save();" >nul 2>&1
