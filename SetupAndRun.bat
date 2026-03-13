@@ -54,7 +54,6 @@ IF "!ARCH!"=="32" SET "BRANCH=win10-x86"
 echo Using branch: !BRANCH!
 echo.
 
-
 REM ============================================
 REM  STEP 0 — Relaunch elevated (UAC)
 REM ============================================
