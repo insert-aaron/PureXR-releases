@@ -45,6 +45,13 @@ REM ============================================
 SET "ARCH=64"
 IF /I "%PROCESSOR_ARCHITECTURE%"=="x86" IF "%PROCESSOR_ARCHITEW6432%"=="" SET "ARCH=32"
 echo Detected Windows %ARCH%-bit.
+
+REM ============================================
+REM  SELECT GIT BRANCH BY ARCHITECTURE
+REM ============================================
+SET "BRANCH=main"
+IF "!ARCH!"=="32" SET "BRANCH=win10-x86"
+echo Using branch: !BRANCH!
 echo.
 
 REM ============================================
@@ -93,7 +100,7 @@ REM  STEP 2 — Clone or Update via Git
 REM ============================================
 IF NOT EXIST "%INSTALL_DIR%\.git" (
     echo [2/7] First-time install: Downloading PureXR...
-    git clone "%REPO_URL%" "%INSTALL_DIR%"
+    git clone --branch !BRANCH! --single-branch "%REPO_URL%" "%INSTALL_DIR%"
     IF %ERRORLEVEL% NEQ 0 (
         echo ERROR: Failed to download PureXR.
         echo Check your internet connection and try again.
@@ -106,7 +113,7 @@ IF NOT EXIST "%INSTALL_DIR%\.git" (
     cd /d "%INSTALL_DIR%"
 
     REM Try to reach GitHub — skip update if offline
-    git fetch --depth=1 origin main >nul 2>&1
+    git fetch --depth=1 origin !BRANCH! >nul 2>&1
     IF %ERRORLEVEL% NEQ 0 (
         echo Could not reach update server. Running current version.
         goto :SKIP_UPDATE
@@ -114,12 +121,12 @@ IF NOT EXIST "%INSTALL_DIR%\.git" (
 
     REM Compare local vs remote commit hash
     FOR /F %%i IN ('git rev-parse HEAD') DO SET LOCAL_HASH=%%i
-    FOR /F %%i IN ('git rev-parse origin/main') DO SET REMOTE_HASH=%%i
+    FOR /F %%i IN ('git rev-parse origin/!BRANCH!') DO SET REMOTE_HASH=%%i
 
     IF NOT "!LOCAL_HASH!"=="!REMOTE_HASH!" (
         echo Update found! Downloading...
-        git fetch --depth=1 origin main
-        git reset --hard origin/main
+        git fetch --depth=1 origin !BRANCH!
+        git reset --hard origin/!BRANCH!
         echo Update complete. Restarting...
         start "" "%INSTALL_DIR%\SetupAndRun.bat"
         exit /b 0
