@@ -31,10 +31,12 @@ REM ============================================
 SET REPO_URL=https://github.com/insert-aaron/PureXR-releases.git
 SET INSTALL_DIR=C:\PureXR
 SET EXE_NAME=RvgCaptureGui.exe
-SET SERVICE_NAME=CaptureService.exe
+SET SERVICE_NAME=PluginHost.exe
+SET PLUGINS_DIR=C:\PureXR\Plugins
 
 SET "EXE_PATH=%INSTALL_DIR%\%EXE_NAME%"
 SET "SERVICE_PATH=%INSTALL_DIR%\%SERVICE_NAME%"
+SET "PLUGINS_PATH=%PLUGINS_DIR%"
 SET "SHORTCUT_PATH=%USERPROFILE%\Desktop\PureXR.lnk"
 SET "OUTDIR=%USERPROFILE%\Desktop\X-Ray Images - DO NOT Delete"
 SET "HERE=%~dp0"
@@ -220,6 +222,12 @@ REM Create X-Ray output folder on Desktop
 IF NOT EXIST "%OUTDIR%" (
     mkdir "%OUTDIR%" 2>nul
     echo Created output folder on Desktop.
+)
+
+REM Create Plugins folder
+IF NOT EXIST "%PLUGINS_PATH%" (
+    mkdir "%PLUGINS_PATH%" 2>nul
+    echo Created Plugins folder.
 )
 
 REM Create Desktop shortcut pointing to SetupAndRun.bat (ensures update check on every launch)
